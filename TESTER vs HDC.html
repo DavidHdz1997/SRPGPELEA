@@ -1,0 +1,2935 @@
+<html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Batalla</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&amp;family=Montserrat:wght@300;400;500;600&amp;display=swap" rel="stylesheet">
+
+<style>
+/* Inner-box modo duelo */
+.inner-box.duel-bars {
+    padding: 10px 18px 12px;
+    width: clamp(300px, 70%, 760px);
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(15,23,42,0.98), rgba(3,7,18,0.98));
+}
+
+/* Fila principal */
+.duel-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+/* Cada lado */
+.fighter-side {
+    flex: 1;
+}
+
+/* Barra compacta */
+.hp-bar.small {
+    height: 7px;
+    border-radius: 8px;
+    background: rgba(8, 24, 58, 0.4);
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    overflow: hidden;
+    margin-bottom: 4px;
+}
+
+/* Relleno dinámico */
+.hp-fill {
+    height: 100%;
+    width: calc((var(--hp) / var(--max)) * 100%);
+    transition: width 0.4s ease;
+}
+
+.hp-fill.blue {
+    background: linear-gradient(90deg, #38bdf8, #0ea5e9);
+    box-shadow: 0 0 6px rgba(56,189,248,0.6);
+}
+
+.hp-fill.gold {
+    background: linear-gradient(90deg, #fbbf24, #f59e0b);
+    box-shadow: 0 0 6px rgba(245,158,11,0.6);
+}
+
+/* Texto */
+.hp-info {
+    font-size: 0.74rem;
+    display: flex;
+    justify-content: space-between;
+    color: var(--text-muted);
+}
+
+.name {
+    font-family: 'Cinzel', serif;
+    color: var(--accent-gold);
+    letter-spacing: 0.09em;
+    font-size: 0.76rem;
+}
+
+/* VS centrado */
+.duel-divider {
+    font-family: 'Cinzel', serif;
+    font-size: 0.9rem;
+    color: var(--accent-blue);
+    opacity: 0.8;
+    letter-spacing: 0.15em;
+}
+
+/* Espejo completo para lado derecho */
+.fighter-side.right .hp-info {
+    /* flex-direction: row-reverse; */
+    text-align: right;
+}
+
+.fighter-side.right .hp-info .values {
+    text-align: left;
+    margin-right: auto;
+}
+
+/* Barra invertida para enemigo */
+.hp-fill.enemy {
+    transform-origin: right center;
+    transform: scaleX(calc((var(--hp) / var(--max))));
+    width: 100%; /* Fijo: todo controlado por transform */
+}
+
+.name.attacker {
+    color: var(--accent-gold); /* por si acaso */
+    text-shadow:
+        0 0 6px rgba(245, 217, 125, 0.8),
+        0 0 12px rgba(245, 217, 125, 0.6),
+        0 0 20px rgba(251, 191, 36, 0.4);
+    /* animation: attacker-glow 1.3s infinite alternate ease-in-out; */
+}
+
+@keyframes attacker-glow {
+    0% {
+        text-shadow:
+            0 0 4px rgba(245, 217, 125, 0.5),
+            0 0 8px rgba(245, 217, 125, 0.4),
+            0 0 12px rgba(251, 191, 36, 0.2);
+    }
+    100% {
+        text-shadow:
+            0 0 10px rgba(245, 217, 125, 0.9),
+            0 0 18px rgba(245, 217, 125, 0.7),
+            0 0 28px rgba(251, 191, 36, 0.5);
+    }
+}
+
+.damage-float {
+    position: absolute;
+    top: -14px;
+    left: 8px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #f87171;
+    pointer-events: none;
+    opacity: 1;               /* SIEMPRE visible */
+    text-shadow: 0 0 6px rgba(248,113,113,0.8);
+}
+
+/* Para el enemigo (lado derecho) */
+.damage-float.right {
+    left: auto;
+    right: 8px;
+}
+
+/* Animación: sube y desaparece */
+@keyframes damageFloat {
+    0% {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+    20% {
+        opacity: 1;
+        transform: translateY(-2px);
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(-16px);
+    }
+}
+
+        /*  */
+        /*  */
+
+        :root {
+            --bg-main: #020617;                 /* Fondo principal muy oscuro */
+            --bg-card: #020818;                 /* Tarjetas */
+            --bg-card-soft: #030b1c;
+            --accent-gold: #f5d97d;             /* Dorado principal */
+            --accent-gold-soft: #bda35c;
+            --accent-blue: #38bdf8;             /* Azul cosmos */
+            --accent-blue-soft: #0ea5e9;
+            --text-main: #e5e7eb;
+            --text-muted: #9ca3af;
+            --border-gold: rgba(245, 217, 125, .55);
+            --border-blue: rgba(56, 189, 248, .35);
+            --shadow-cosmo: 0 0 25px rgba(56, 189, 248, .45);
+        }
+
+        * {
+            box-sizing: border-box;
+            
+        }
+
+        body {
+            will-change: transform;
+            margin: 0;
+            min-height: 100vh;
+            color: var(--text-main);
+            font-family: 'Montserrat', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background:
+            radial-gradient(circle at 15% 10%, rgba(56, 189, 248, 0.18), transparent 55%),
+            radial-gradient(circle at 85% 90%, rgba(125, 209, 245, 0.18), transparent 55%),
+            linear-gradient(135deg, #0f172a, #020617 60%, #000814);
+            background-attachment: fixed;
+            background-size: cover;
+            background-repeat: no-repeat;
+            /* background: radial-gradient(circle at 0 0, rgba(148, 163, 184, 0.12) 0, transparent 55%), radial-gradient(circle at 100% 0, rgba(56, 189, 248, 0.15) 0, transparent 55%), linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(2, 6, 23, 0.98)), url(https://www.saintseiya-kotz.com/en/pc/lib/img/common/bg_main.jpg); */
+            background-blend-mode: screen, screen, normal, multiply;
+           
+            justify-content: center;
+            padding: 32px 12px;
+        }
+
+        .battle-container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            position: relative;
+            padding: 24px 28px 32px;
+            /* background: radial-gradient(circle at top, rgba(15, 23, 42, 0.96) 0, rgba(2, 6, 23, 0.98) 60%, rgba(0, 0, 0, 0.96) 100%); */
+            background: rgba(0, 0, 0, 0.20);
+            border-radius: 22px;
+            box-shadow: 0 22px 60px rgba(0, 0, 0, 0.85), 0 0 40px rgba(15, 23, 42, 0.85);
+            overflow: hidden;
+        }
+
+        .battle-container::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            padding: 1px;
+            background:
+                linear-gradient(135deg, rgba(245, 217, 125, 0.7), rgba(56, 189, 248, 0.65));
+            -webkit-mask:
+                linear-gradient(#000 0 0) content-box,
+                linear-gradient(#000 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            opacity: 0.9;
+            pointer-events: none;
+        }
+
+        .battle-container::after {
+            content: "";
+            position: absolute;
+            inset: -40%;
+            /* background:
+                radial-gradient(circle at 20% -10%, rgba(56, 189, 248, 0.12) 0, transparent 55%),
+                radial-gradient(circle at 80% 120%, rgba(245, 217, 125, 0.12) 0, transparent 55%); */
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        /* HEADER: jugadores + VS */
+        .battle-header {
+            /* position: relative; */
+            z-index: 1;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            /* gap: 24px; */
+            margin-bottom: 32px;
+        }
+
+        .player {
+            /* flex: 1 1 0; */
+            text-align: center;
+        }
+
+        .player h3 {
+            margin-top: 10px;
+            font-family: 'Cinzel', serif;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            font-size: 1rem;
+            color: var(--accent-gold);
+            text-shadow: 0 0 10px rgba(245, 217, 125, 0.35);
+        }
+
+        .player-avatar,
+        .npj-avatar {
+            width: 246px;
+            height: 366px;
+            /* max-width: 100%; */
+            object-fit: fill;
+            /* border-radius: 18px; */
+            /* border: 1px solid rgba(148, 163, 184, 0.35); */
+            /* box-shadow: 0 0 18px rgba(15, 23, 42, 0.9), 0 0 28px rgba(56, 189, 248, 0.65); */
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
+            
+        }
+
+        .player-avatar {
+            box-shadow: 0 0 18px rgba(15, 23, 42, 0.9), 0 0 28px rgba(56, 189, 248, 0.65);
+        }
+        
+
+        .player-avatar:hover,
+        .npj-avatar:hover {
+            transform: translateY(-4px) scale(1.02);
+            /* box-shadow:
+                0 0 22px rgba(15, 23, 42, 0.95),
+                0 0 40px rgba(56, 189, 248, 0.95); */
+        }
+
+        .npj-avatar {
+            filter: drop-shadow(0 0 0.55rem var(--cosmo-color, rgba(56, 189, 248, 0.9)));
+            filter: drop-shadow(0 0 0.55rem var(--cosmo-color));
+            width: 246px;
+                height: 366px;
+                /* max-width: 100%; */
+                object-fit: fill;
+                /* border-radius: 18px; */
+                /* border: 1px solid rgba(148, 163, 184, 0.35); */
+                /* box-shadow: 0 0 18px rgba(15, 23, 42, 0.9), 0 0 28px rgba(56, 189, 248, 0.65); */
+                transition: transform 0.25s 
+            ease, box-shadow 0.25s 
+            ease;
+        }
+
+        .vs-text {
+            /* flex: 0 0 auto; */
+            /* position: relative; */
+        }
+
+        .vs-text h2 {
+            /* margin: 0; */
+            /* padding: 6px 18px; */
+            font-family: 'Cinzel', serif;
+            font-weight: 700;
+            font-size: 2.8rem;
+            letter-spacing: 0.25em;
+            text-indent: 0.25em;
+            color: var(--accent-gold);
+            /* border-radius: 999px; */
+            /* border: 1px solid rgba(245, 217, 125, 0.75); */
+            /* box-shadow: 0 0 18px rgba(245, 217, 125, 0.7), 0 0 30px rgba(56, 189, 248, 0.65); */
+            /* background: radial-gradient(circle at 0 0, rgba(56, 189, 248, 0.25) 0, transparent 55%), radial-gradient(circle at 100% 100%, rgba(245, 217, 125, 0.35) 0, transparent 55%), linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(8, 47, 73, 0.96)); */
+            text-shadow: 0 0 12px rgba(245, 217, 125, 0.65), 0 0 30px rgba(251, 191, 36, 0.55);
+            animation: vs-glow 1.8s infinite alternate;
+
+        }
+
+        @keyframes vs-glow {
+            0% {
+                text-shadow: 0 0 14px rgba(245, 217, 125, 0.6), 0 0 24px rgba(56, 189, 248, 0.55);
+                /* transform: translateY(0); */
+            }
+
+            100% {
+                text-shadow: 0 0 30px rgba(245, 217, 125, 0.9), 0 0 40px rgba(56, 189, 248, 0.75);
+                /* transform: translateY(-2px); */
+            }
+
+        }
+
+        /* LISTA DE RONDAS */
+        .rounds-container {
+            position: relative;
+            z-index: 1;
+            margin-top: 8px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .rounds-list {
+            /* width: 100%;
+            max-width: 1050px; */
+        }
+
+        .rounds-list h3 {
+            margin: 0 0 18px 0;
+            text-align: center;
+            font-family: 'Cinzel', serif;
+            text-transform: uppercase;
+            letter-spacing: 0.26em;
+            text-indent: 0.26em;
+            font-size: 0.95rem;
+            color: var(--accent-blue);
+            position: relative;
+        }
+
+        .rounds-list h3::before,
+        .rounds-list h3::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            width: 22%;
+            height: 1px;
+            background: linear-gradient(to right, transparent, rgba(56, 189, 248, 0.85));
+        }
+
+        .rounds-list h3::before {
+            left: 2%;
+        }
+
+        .rounds-list h3::after {
+            right: 2%;
+            transform: scaleX(-1);
+        }
+
+        .mondongo {
+            width: 100%;
+            margin-bottom: 14px;
+            opacity: 0;
+            transform: translateY(36px);
+            transition: all 0.45s ease;
+        }
+
+        .mondongo.appear {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .round-header {
+            text-align: center;
+            margin-bottom: 6px;
+        }
+
+        .round-header h4 {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            padding: 4px 16px;
+            font-family: 'Cinzel', serif;
+            font-size: 0.85rem;
+            letter-spacing: 0.2em;
+            text-indent: 0.2em;
+            text-transform: uppercase;
+            color: var(--accent-gold);
+            border-radius: 999px;
+            border: 1px solid rgba(245, 217, 125, 0.7);
+            background:
+                radial-gradient(circle at 0 0, rgba(56, 189, 248, 0.35) 0, transparent 55%),
+                linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(8, 47, 73, 0.96));
+            box-shadow: 0 0 16px rgba(15, 23, 42, 0.9);
+        }
+
+        .round {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.14) 0, transparent 55%),
+                        radial-gradient(circle at bottom right, rgba(125, 201, 245, 0.12) 0, transparent 55%),
+                        linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(3, 7, 18, 0.98));
+            border-radius: 18px;
+            padding: 14px 18px 16px;
+            border: 1px solid rgba(15, 23, 42, 0.9);
+            box-shadow:
+                0 14px 38px rgba(0, 0, 0, 0.95),
+                0 0 24px rgba(15, 23, 42, 0.95);
+            overflow: hidden;
+        }
+
+        .round::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            padding: 1px;
+            background:
+                linear-gradient(135deg, rgba(56, 189, 248, 0.7), rgba(15, 23, 42, 0.6));
+            -webkit-mask:
+                linear-gradient(#000 0 0) content-box,
+                linear-gradient(#000 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            opacity: 0.9;
+            pointer-events: none;
+        }
+
+        .round-details-container {
+            position: relative;
+            z-index: 1;
+            width: clamp(300px, 80vw, 1050px);
+            display: flex;
+            justify-content: space-evenly;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .round-gif-player1,
+        .round-gif-player2 {
+            flex: 0 0 120px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .round-gif-player1 img,
+        .round-gif-player2 img {
+            width: 120px;
+            height: 90px;
+            border-radius: 10px;
+            object-fit: cover;
+            border: 1px solid rgba(148, 163, 184, 0.6);
+            box-shadow:
+                0 0 10px rgba(15, 23, 42, 0.9),
+                0 0 18px rgba(56, 189, 248, 0.6);
+        }
+
+        .hide-gif {
+            display: none;
+        }
+
+        .show-gif {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .round-details {
+            /* flex: 1 1 auto; */
+            text-align: center;
+            width:70%
+        }
+
+        .round-details p {
+            margin: 4px 0;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            color: var(--text-main);
+        }
+
+        .round-details p:nth-child(1) {
+            font-weight: 700;
+            color: var(--accent-blue-soft);
+        }
+
+        .round-details p:nth-child(2),
+        .round-details p:nth-child(3),
+        .round-details p:nth-child(4) {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        .inner-box {
+            position: relative;
+            margin: 0px auto 0;
+            width: clamp(300px, 60%, 680px);
+            padding: 8px 14px;
+            border-radius: 0 0 16px 16px;
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(3, 7, 18, 0.98));
+            border: 1px solid rgb(21 53 81);
+            border-top: none;
+            box-shadow: 0 12px 25px rgba(0, 0, 0, 0.85);
+            text-align: center;
+        }
+
+        .inner-box p {
+            margin: 2px 0;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .inner-box p span {
+            color: var(--accent-gold);
+        }
+
+        /* RESULTADOS FINALES */
+        .results-section {
+            position: relative;
+            z-index: 1;
+            margin-top: 28px;
+            padding: 20px 20px 22px;
+            border-radius: 20px;
+            background:
+                radial-gradient(circle at top, rgba(56, 189, 248, 0.18) 0, transparent 55%),
+                radial-gradient(circle at bottom,  rgba(125, 201, 245, 0.12) 0, transparent 55%),
+                linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(3, 7, 18, 0.98));
+
+            /* background: 
+                radial-gradient(circle at top left, rgba(56, 189, 248, 0.14) 0, transparent 55%),
+                radial-gradient(circle at bottom right, rgba(125, 201, 245, 0.12) 0, transparent 55%),
+                linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(3, 7, 18, 0.98)); */
+
+            border: 1px solid rgba(15, 23, 42, 0.95);
+            box-shadow:
+                0 18px 40px rgba(0, 0, 0, 0.95),
+                0 0 32px rgba(15, 23, 42, 0.9);
+            opacity: 0;
+            transform: scale(0.9);
+            transition: all 0.5s ease;
+        }
+
+        .results-section.appear {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .result-title {
+            margin: 0;
+            text-align: center;
+            font-family: 'Cinzel', serif;
+            letter-spacing: 0.18em;
+            text-indent: 0.18em;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+            color: var(--accent-gold-soft);
+            text-shadow: 0 0 14px rgba(245, 217, 125, 0.4);
+        }
+
+        .result-title + .result-title {
+            margin-top: 4px;
+            font-size: 1.05rem;
+            color: var(--accent-gold);
+        }
+
+        .results-container {
+            margin-top: 18px;
+            display: flex;
+            flex-direction: row;
+            justify-content: space-evenly;
+            /* gap: 40px; */
+            width: 100%;
+        }
+
+        .result-container {
+            flex: 1 1 0;
+            max-width: 420px;
+            display: flex;
+            justify-content: center;
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.45s ease;
+        }
+
+        .result-container.appear {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .rewards-message {
+            width: 100%;
+            padding: 14px 16px 16px;
+            border-radius: 18px;
+            background:
+                radial-gradient(circle at top left, rgba(56, 189, 248, 0.16) 0, transparent 55%), 
+                radial-gradient(circle at bottom right, rgb(19 179 255 / 14%) 0, transparent 55%), 
+                linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(3, 7, 18, 0.98));
+                
+            border: 1px solid rgba(30, 64, 175, 0.9);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.95);
+            text-align: center;
+        }
+
+        .rewards-message h3 {
+            margin: 0 0 6px;
+            font-family: 'Cinzel', serif;
+            font-size: 0.95rem;
+            letter-spacing: 0.18em;
+            text-indent: 0.18em;
+            text-transform: uppercase;
+            color: var(--accent-blue-soft);
+        }
+
+        .rewards-message h4 {
+            margin: 6px 0 8px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--accent-gold-soft);
+        }
+
+        .rewards-message.victory {
+            box-shadow:
+                0 0 22px rgba(245, 217, 125, 0.7),
+                0 0 36px rgba(56, 189, 248, 0.5);
+            border-color: rgba(245, 217, 125, 0.8);
+        }
+
+        .rewards-message.defeat {
+            border-color: rgba(15, 23, 42, 0.9);
+            box-shadow:
+                0 0 18px rgba(15, 23, 42, 0.9),
+                0 0 26px rgba(15, 23, 42, 0.85);
+            opacity: 0.85;
+        }
+
+        .rewards-message .result-image {
+            margin: 6px 0 8px;
+        }
+
+        .reward-text h4 {
+            margin-block-start: 0.4em;
+            margin-block-end: 0.3em;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            text-indent: 0.14em;
+            color: var(--accent-blue-soft);
+        }
+
+        .reward-list ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .reward-list li {
+            font-size: 0.85rem;
+            margin: 4px 0;
+            color: var(--text-main);
+        }
+
+        .reward-list img {
+            /* margin-top: 6px;
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.65);
+            box-shadow:
+                0 0 10px rgba(15, 23, 42, 0.9),
+                0 0 18px rgba(56, 189, 248, 0.6); */
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 1024px) {
+            /* .battle-container {
+                padding: 20px 16px 24px;
+            }
+
+            .battle-header {
+                gap: 16px;
+            }
+
+            .vs-text h2 {
+                font-size: 2.2rem;
+            }
+
+            .round-details-container {
+                gap: 12px;
+            }
+
+            .results-container {
+                gap: 16px;
+            } */
+
+            /*  */
+
+            .battle-container {
+                width: 95%;
+            }
+
+
+            .results-container {
+                flex-direction: row; /* Cambiar a columna en pantallas más pequeñas */
+            }
+
+            .result-container {
+                width: 90%; /* Cambiar a un ancho más pequeño */
+                margin: 10px 0; /* Espaciado entre resultados */
+            }
+
+            /*.inner-box {
+                width: 70%;
+            }*/
+
+            /*.round-details-container {
+                padding: 0 20px 0 20px; 
+            }*/
+            .results-container {
+                gap: 30px;
+            }
+
+            .round-gif-player2
+            {
+                order: -1;
+            }
+        }
+
+        @media (max-width: 1190px) {
+            .rewards-message {
+                /*flex-direction: column;
+                justify-content: flex-start;*/
+                text-align: center;
+            }
+
+                /*.rewards-message h4 {
+                    margin-block-end: 0em;
+                }*/
+        }
+
+        @media (max-width: 900px) {
+            /* .battle-header {
+                flex-wrap: wrap;
+                justify-content: center;
+                text-align: center;
+            } */
+
+            .player {
+                /* flex: 0 0 auto; */
+            }
+
+            .vs-text {
+                /* order: -1; */
+            }
+
+            .round-details-container {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .round-details {
+                text-align: center;
+                width: 100%;
+            }
+
+            .inner-box {
+                width: 90%;
+            }
+
+            .results-container {
+                /* flex-direction: column; */
+                /* align-items: center; */
+            }
+
+            .result-container {
+                max-width: 520px;
+            }
+        }
+
+        @media (max-width: 768px) {
+                .battle-header {
+                    flex-direction: row;
+                    align-items: center;
+                }
+
+                .player-avatar,
+                .npj-avatar {
+                    width: clamp(160px, 80vw, 246px);
+                    height: auto;
+                    aspect-ratio: 246 / 366;
+                }
+
+                img {
+                    max-width: 100%; /* Asegura que los gifs no se desborden */
+                    height: auto;
+                }
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 16px 8px;
+            }
+
+            .battle-container {
+                padding: 16px 12px 20px;
+            }
+
+            
+
+            .vs-text h2 {
+                font-size: 1.9rem;
+                letter-spacing: 0.18em;
+            }
+
+            .rounds-list h3::before,
+            .rounds-list h3::after {
+                width: 18%;
+            }
+
+            .round {
+                padding: 12px 10px 14px;
+            }
+
+            .round-details p {
+                font-size: 0.85rem;
+            }
+
+            .inner-box p {
+                font-size: 0.78rem;
+            }
+
+            .results-section {
+                padding: 16px 10px 18px;
+            }
+
+            .reward-list li {
+                font-size: 0.8rem;
+            }
+
+            .name {
+                font-size: 0.60rem;
+            }
+
+            .attacker {
+                font-size: 0.60rem;
+            }
+
+            .hp-info {
+                font-size: 0.56rem;
+            }
+
+            
+        }
+
+        @media (max-width: 400px) {
+            .round-details-container {
+                width: 100%;
+            }
+
+            .round-gif-player1 img,
+            .round-gif-player2 img {
+                width: 100px;
+                height: 75px;
+            }
+        }
+</style>
+<style>
+.mondongo {
+    opacity: 0;
+    transform: translateY(50px);
+    transition: all 0.5s ease;
+}
+
+.results-section {
+    opacity: 0;
+    transform: scale(0.8);
+    transition: all 0.5s ease;
+}
+</style></head>
+<body>
+    <div class="battle-container">
+        <!-- Header with player avatars https://2img.net/h/s19.postimg.cc/3s0tipb83/Sagitario_David.gif-->
+        <div class="battle-header">
+            <div class="player player1">
+                <img src="https://i.pinimg.com/474x/55/2b/67/552b6783915f5c24ee2608217c078a96.jpg" alt="Jugador 1 Avatar" class="player-avatar">
+                <h3>TESTER</h3>
+            </div>
+            <div class="vs-text">
+                <h2>VS</h2>
+            </div>
+            <div class="player player2">
+                <img src="https://www.pharaonwebsite.com/users/trident/fanarts/Saint_Seiya/0Blank/Hyoga_I.png" alt="Jugador 2 Avatar" class="npj-avatar" style="--cosmo-color: rgb(242, 255, 255);">
+                <h3>Hyoga de Cisne</h3>
+            </div>
+        </div>
+
+        <!-- Battle Rounds -->
+        <div class="rounds-container">
+            <div class="rounds-list">
+
+                <h3>COMIENZA LA PELEA</h3>
+
+
+                    <div class="mondongo appear">
+                        <div class="round-header">
+                            <h4>Ronda 1</h4>
+                        </div>
+                        <div class="round">
+                            <div class="round-details-container">
+
+                                <div class="round-gif-player1 show-gif">
+                                    <!-- Aquí va el gif del Jugador 1 -->
+                                    <img src="https://i.makeagif.com/media/5-22-2023/D1xYAp.gif" alt="Jugador 1 atacando" style="width: 120px; height: 90px;">
+                                </div>
+
+                                <div class="round-details">
+
+                                        <p>
+                                            Turno 1:
+                                            <br>
+                                            TESTER  : Siente el filo de la espada sagrada... Excalibur!<br>Hyoga de Cisne ha resistido el ataque.
+                                        </p>
+                                            <p>
+                                                Este ataque tiene un efecto: Fractura 7-4
+                                                <br>
+                                                Esta tecnica puede romper la armadura del enemigo hasta en 7 puntos y paralizarlo hasta por 4 rondas.
+                                            </p>
+
+
+
+
+                                </div>
+                                <div class="round-gif-player2 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 2 -->
+                                    <img src="https://i.makeagif.com/media/5-22-2023/D1xYAp.gif" alt="Jugador 2 atacando" style="width: 120px; height: 90px;">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="inner-box">
+                                <!-- Contenido del div pequeño si es necesario -->
+
+
+
+                                
+
+                            <div class="duel-row">
+
+                                <!-- Jugador 1 -->
+                                <div class="fighter-side left">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill blue" style="--hp:4000; --max:4000;">
+                                        </div>
+                                    </div>
+
+                                    <div class="hp-info">
+                                        <span class="name attacker">
+                                            TESTER
+                                        </span>
+                                        <span class="values">4000 / 4000</span>
+                                    </div>
+                                </div>
+
+                                <!-- VS -->
+                                <div class="duel-divider">VS</div>
+
+                                <!-- Jugador 2 (ESPEJO) -->
+                                <div class="fighter-side right">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill gold enemy" style="--hp:4000; --max:4000;">
+                                        </div>
+                                    </div>
+
+
+                                    <div class="hp-info enemy">
+                                        <span class="values">4000 / 4000</span>
+                                        <span class="name ">
+                                            Hyoga de Cisne
+                                        </span>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                        </div>
+                    </div>
+                    <div class="mondongo appear">
+                        <div class="round-header">
+                            <h4>Ronda 2</h4>
+                        </div>
+                        <div class="round">
+                            <div class="round-details-container">
+
+                                <div class="round-gif-player1 show-gif">
+                                    <!-- Aquí va el gif del Jugador 1 -->
+                                    <img src="https://i.makeagif.com/media/5-22-2023/D1xYAp.gif" alt="Jugador 1 atacando" style="width: 120px; height: 90px;">
+                                </div>
+
+                                <div class="round-details">
+
+                                        <p>
+                                            Turno 2:
+                                            <br>
+                                            TESTER  : Siente el filo de la espada sagrada... Excalibur!.<br>Hyoga de Cisne ha resistido el ataque.<br><strong>La resistencia de Hyoga de Cisne es inquebrantable, el ataque recibido se revierte en contra de TESTER.</strong><br>TESTER recibe 10 de daño.
+                                        </p>
+                                            <p>
+                                                Este ataque tiene un efecto: Fractura 7-4
+                                                <br>
+                                                Esta tecnica puede romper la armadura del enemigo hasta en 7 puntos y paralizarlo hasta por 4 rondas.
+                                            </p>
+
+
+
+
+                                </div>
+                                <div class="round-gif-player2 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 2 -->
+                                    <img src="https://i.makeagif.com/media/5-22-2023/D1xYAp.gif" alt="Jugador 2 atacando" style="width: 120px; height: 90px;">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="inner-box">
+                                <!-- Contenido del div pequeño si es necesario -->
+
+
+
+                                
+
+                            <div class="duel-row">
+
+                                <!-- Jugador 1 -->
+                                <div class="fighter-side left">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill blue" style="--hp:3990; --max:4000;">
+                                        </div>
+                                    </div>
+                                        <span class="damage-float">-10</span>
+
+                                    <div class="hp-info">
+                                        <span class="name attacker">
+                                            TESTER
+                                        </span>
+                                        <span class="values">3990 / 4000</span>
+                                    </div>
+                                </div>
+
+                                <!-- VS -->
+                                <div class="duel-divider">VS</div>
+
+                                <!-- Jugador 2 (ESPEJO) -->
+                                <div class="fighter-side right">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill gold enemy" style="--hp:4000; --max:4000;">
+                                        </div>
+                                    </div>
+
+
+                                    <div class="hp-info enemy">
+                                        <span class="values">4000 / 4000</span>
+                                        <span class="name ">
+                                            Hyoga de Cisne
+                                        </span>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                        </div>
+                    </div>
+                    <div class="mondongo appear">
+                        <div class="round-header">
+                            <h4>Ronda 3</h4>
+                        </div>
+                        <div class="round">
+                            <div class="round-details-container">
+
+                                <div class="round-gif-player1 show-gif">
+                                    <!-- Aquí va el gif del Jugador 1 -->
+                                    <img src="https://i.makeagif.com/media/5-22-2023/D1xYAp.gif" alt="Jugador 1 atacando" style="width: 120px; height: 90px;">
+                                </div>
+
+                                <div class="round-details">
+
+                                        <p>
+                                            Turno 3:
+                                            <br>
+                                            TESTER  : Siente el filo de la espada sagrada... Excalibur!.<br>Hyoga de Cisne ha esquivado el ataque.<br><strong>Hyoga de Cisne gira esquivando por un margen mínimo y usa el impulso para devolver un ataque preciso a TESTER.</strong><br>TESTER recibe 4 de daño.
+                                        </p>
+                                            <p>
+                                                Este ataque tiene un efecto: Fractura 7-4
+                                                <br>
+                                                Esta tecnica puede romper la armadura del enemigo hasta en 7 puntos y paralizarlo hasta por 4 rondas.
+                                            </p>
+
+
+
+
+                                </div>
+                                <div class="round-gif-player2 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 2 -->
+                                    <img src="https://i.makeagif.com/media/5-22-2023/D1xYAp.gif" alt="Jugador 2 atacando" style="width: 120px; height: 90px;">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="inner-box">
+                                <!-- Contenido del div pequeño si es necesario -->
+
+
+
+                                
+
+                            <div class="duel-row">
+
+                                <!-- Jugador 1 -->
+                                <div class="fighter-side left">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill blue" style="--hp:3986; --max:4000;">
+                                        </div>
+                                    </div>
+                                        <span class="damage-float">-14</span>
+
+                                    <div class="hp-info">
+                                        <span class="name attacker">
+                                            TESTER
+                                        </span>
+                                        <span class="values">3986 / 4000</span>
+                                    </div>
+                                </div>
+
+                                <!-- VS -->
+                                <div class="duel-divider">VS</div>
+
+                                <!-- Jugador 2 (ESPEJO) -->
+                                <div class="fighter-side right">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill gold enemy" style="--hp:4000; --max:4000;">
+                                        </div>
+                                    </div>
+
+
+                                    <div class="hp-info enemy">
+                                        <span class="values">4000 / 4000</span>
+                                        <span class="name ">
+                                            Hyoga de Cisne
+                                        </span>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                        </div>
+                    </div>
+                    <div class="mondongo appear">
+                        <div class="round-header">
+                            <h4>Ronda 4</h4>
+                        </div>
+                        <div class="round">
+                            <div class="round-details-container">
+
+                                <div class="round-gif-player1 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 1 -->
+                                    <img src="https://2img.net/h/oi64.tinypic.com/eqr12x.gif" alt="Jugador 1 atacando" style="width: 120px; height: 90px;">
+                                </div>
+
+                                <div class="round-details">
+
+                                        <p>
+                                            Turno 1:
+                                            <br>
+                                            Hyoga de Cisne  : Recibe la legendaria tecnica del legendario cisne que reina en el universo del hielo... Polvo de Diamantes! pero ha fallado.
+                                        </p>
+                                            <p>
+                                                Este ataque tiene un efecto: Paralisis 5-2
+                                                <br>
+                                                Esta tecnica puede romper la armadura del enemigo hasta en 2 puntos y paralizarlo hasta por 5 rondas.
+                                            </p>
+
+
+
+
+                                </div>
+                                <div class="round-gif-player2 show-gif">
+                                    <!-- Aquí va el gif del Jugador 2 -->
+                                    <img src="https://2img.net/h/oi64.tinypic.com/eqr12x.gif" alt="Jugador 2 atacando" style="width: 120px; height: 90px;">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="inner-box">
+                                <!-- Contenido del div pequeño si es necesario -->
+
+
+
+                                
+
+                            <div class="duel-row">
+
+                                <!-- Jugador 1 -->
+                                <div class="fighter-side left">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill blue" style="--hp:3986; --max:4000;">
+                                        </div>
+                                    </div>
+                                        <span class="damage-float">-14</span>
+
+                                    <div class="hp-info">
+                                        <span class="name ">
+                                            TESTER
+                                        </span>
+                                        <span class="values">3986 / 4000</span>
+                                    </div>
+                                </div>
+
+                                <!-- VS -->
+                                <div class="duel-divider">VS</div>
+
+                                <!-- Jugador 2 (ESPEJO) -->
+                                <div class="fighter-side right">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill gold enemy" style="--hp:4000; --max:4000;">
+                                        </div>
+                                    </div>
+
+
+                                    <div class="hp-info enemy">
+                                        <span class="values">4000 / 4000</span>
+                                        <span class="name attacker">
+                                            Hyoga de Cisne
+                                        </span>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                        </div>
+                    </div>
+                    <div class="mondongo appear">
+                        <div class="round-header">
+                            <h4>Ronda 5</h4>
+                        </div>
+                        <div class="round">
+                            <div class="round-details-container">
+
+                                <div class="round-gif-player1 show-gif">
+                                    <!-- Aquí va el gif del Jugador 1 -->
+                                    <img src="https://i.makeagif.com/media/5-22-2023/D1xYAp.gif" alt="Jugador 1 atacando" style="width: 120px; height: 90px;">
+                                </div>
+
+                                <div class="round-details">
+
+                                        <p>
+                                            Turno 4:
+                                            <br>
+                                            TESTER  : Siente el filo de la espada sagrada... Excalibur!.<br><strong>¡Ha sido un golpe crítico!</strong><br>Hyoga de Cisne recibe 28 de daño.
+                                        </p>
+                                            <p>
+                                                Este ataque tiene un efecto: Fractura 7-4
+                                                <br>
+                                                Esta tecnica puede romper la armadura del enemigo hasta en 7 puntos y paralizarlo hasta por 4 rondas.
+                                            </p>
+                                            <p>La armadura de Hyoga de Cisne se ha dañado 4 puntos</p>
+                                            <p>Hyoga de Cisne se paralizara 2 turnos.</p>
+
+
+
+
+                                </div>
+                                <div class="round-gif-player2 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 2 -->
+                                    <img src="https://i.makeagif.com/media/5-22-2023/D1xYAp.gif" alt="Jugador 2 atacando" style="width: 120px; height: 90px;">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="inner-box">
+                                <!-- Contenido del div pequeño si es necesario -->
+
+
+
+                                
+
+                            <div class="duel-row">
+
+                                <!-- Jugador 1 -->
+                                <div class="fighter-side left">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill blue" style="--hp:3986; --max:4000;">
+                                        </div>
+                                    </div>
+                                        <span class="damage-float">-14</span>
+
+                                    <div class="hp-info">
+                                        <span class="name attacker">
+                                            TESTER
+                                        </span>
+                                        <span class="values">3986 / 4000</span>
+                                    </div>
+                                </div>
+
+                                <!-- VS -->
+                                <div class="duel-divider">VS</div>
+
+                                <!-- Jugador 2 (ESPEJO) -->
+                                <div class="fighter-side right">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill gold enemy" style="--hp:3972; --max:4000;">
+                                        </div>
+                                    </div>
+
+                                        <span class="damage-float right">-28</span>
+
+                                    <div class="hp-info enemy">
+                                        <span class="values">3972 / 4000</span>
+                                        <span class="name ">
+                                            Hyoga de Cisne
+                                        </span>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                        </div>
+                    </div>
+                    <div class="mondongo appear">
+                        <div class="round-header">
+                            <h4>Ronda 6</h4>
+                        </div>
+                        <div class="round">
+                            <div class="round-details-container">
+
+                                <div class="round-gif-player1 show-gif">
+                                    <!-- Aquí va el gif del Jugador 1 -->
+                                    <img src="https://i.makeagif.com/media/5-22-2023/D1xYAp.gif" alt="Jugador 1 atacando" style="width: 120px; height: 90px;">
+                                </div>
+
+                                <div class="round-details">
+
+                                        <p>
+                                            Turno 5:
+                                            <br>
+                                            TESTER  : Siente el filo de la espada sagrada... Excalibur!<br>Hyoga de Cisne recibe 20 de daño.
+                                        </p>
+                                            <p>
+                                                Este ataque tiene un efecto: Fractura 7-4
+                                                <br>
+                                                Esta tecnica puede romper la armadura del enemigo hasta en 7 puntos y paralizarlo hasta por 4 rondas.
+                                            </p>
+                                            <p>La armadura de Hyoga de Cisne se ha dañado 6 puntos</p>
+                                            <p>Hyoga de Cisne se paralizara 3 turnos.</p>
+
+
+
+
+                                </div>
+                                <div class="round-gif-player2 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 2 -->
+                                    <img src="https://i.makeagif.com/media/5-22-2023/D1xYAp.gif" alt="Jugador 2 atacando" style="width: 120px; height: 90px;">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="inner-box">
+                                <!-- Contenido del div pequeño si es necesario -->
+
+
+
+                                
+
+                            <div class="duel-row">
+
+                                <!-- Jugador 1 -->
+                                <div class="fighter-side left">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill blue" style="--hp:3986; --max:4000;">
+                                        </div>
+                                    </div>
+                                        <span class="damage-float">-14</span>
+
+                                    <div class="hp-info">
+                                        <span class="name attacker">
+                                            TESTER
+                                        </span>
+                                        <span class="values">3986 / 4000</span>
+                                    </div>
+                                </div>
+
+                                <!-- VS -->
+                                <div class="duel-divider">VS</div>
+
+                                <!-- Jugador 2 (ESPEJO) -->
+                                <div class="fighter-side right">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill gold enemy" style="--hp:3952; --max:4000;">
+                                        </div>
+                                    </div>
+
+                                        <span class="damage-float right">-48</span>
+
+                                    <div class="hp-info enemy">
+                                        <span class="values">3952 / 4000</span>
+                                        <span class="name ">
+                                            Hyoga de Cisne
+                                        </span>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                        </div>
+                    </div>
+                    <div class="mondongo appear">
+                        <div class="round-header">
+                            <h4>Ronda 7</h4>
+                        </div>
+                        <div class="round">
+                            <div class="round-details-container">
+
+                                <div class="round-gif-player1 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 1 -->
+                                    <img src="N/A" alt="Jugador 1 atacando" style="width: 120px; height: 90px;">
+                                </div>
+
+                                <div class="round-details">
+
+                                        <p>
+                                            Turno 2:
+                                            <br>
+                                            Hyoga de Cisne esta paralizado y no puede moverse.
+                                        </p>
+
+
+
+
+                                </div>
+                                <div class="round-gif-player2 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 2 -->
+                                    <img src="N/A" alt="Jugador 2 atacando" style="width: 120px; height: 90px;">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="inner-box">
+                                <!-- Contenido del div pequeño si es necesario -->
+
+
+
+                                
+
+                            <div class="duel-row">
+
+                                <!-- Jugador 1 -->
+                                <div class="fighter-side left">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill blue" style="--hp:3986; --max:4000;">
+                                        </div>
+                                    </div>
+                                        <span class="damage-float">-14</span>
+
+                                    <div class="hp-info">
+                                        <span class="name ">
+                                            TESTER
+                                        </span>
+                                        <span class="values">3986 / 4000</span>
+                                    </div>
+                                </div>
+
+                                <!-- VS -->
+                                <div class="duel-divider">VS</div>
+
+                                <!-- Jugador 2 (ESPEJO) -->
+                                <div class="fighter-side right">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill gold enemy" style="--hp:3952; --max:4000;">
+                                        </div>
+                                    </div>
+
+                                        <span class="damage-float right">-48</span>
+
+                                    <div class="hp-info enemy">
+                                        <span class="values">3952 / 4000</span>
+                                        <span class="name attacker">
+                                            Hyoga de Cisne
+                                        </span>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                        </div>
+                    </div>
+                    <div class="mondongo appear">
+                        <div class="round-header">
+                            <h4>Ronda 8</h4>
+                        </div>
+                        <div class="round">
+                            <div class="round-details-container">
+
+                                <div class="round-gif-player1 show-gif">
+                                    <!-- Aquí va el gif del Jugador 1 -->
+                                    <img src="https://i.makeagif.com/media/5-22-2023/D1xYAp.gif" alt="Jugador 1 atacando" style="width: 120px; height: 90px;">
+                                </div>
+
+                                <div class="round-details">
+
+                                        <p>
+                                            Turno 6:
+                                            <br>
+                                            TESTER  : Siente el filo de la espada sagrada... Excalibur!<br>Hyoga de Cisne recibe 16 de daño.
+                                        </p>
+                                            <p>
+                                                Este ataque tiene un efecto: Fractura 7-4
+                                                <br>
+                                                Esta tecnica puede romper la armadura del enemigo hasta en 7 puntos y paralizarlo hasta por 4 rondas.
+                                            </p>
+
+
+
+
+                                </div>
+                                <div class="round-gif-player2 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 2 -->
+                                    <img src="https://i.makeagif.com/media/5-22-2023/D1xYAp.gif" alt="Jugador 2 atacando" style="width: 120px; height: 90px;">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="inner-box">
+                                <!-- Contenido del div pequeño si es necesario -->
+
+
+
+                                
+
+                            <div class="duel-row">
+
+                                <!-- Jugador 1 -->
+                                <div class="fighter-side left">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill blue" style="--hp:3986; --max:4000;">
+                                        </div>
+                                    </div>
+                                        <span class="damage-float">-14</span>
+
+                                    <div class="hp-info">
+                                        <span class="name attacker">
+                                            TESTER
+                                        </span>
+                                        <span class="values">3986 / 4000</span>
+                                    </div>
+                                </div>
+
+                                <!-- VS -->
+                                <div class="duel-divider">VS</div>
+
+                                <!-- Jugador 2 (ESPEJO) -->
+                                <div class="fighter-side right">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill gold enemy" style="--hp:3936; --max:4000;">
+                                        </div>
+                                    </div>
+
+                                        <span class="damage-float right">-64</span>
+
+                                    <div class="hp-info enemy">
+                                        <span class="values">3936 / 4000</span>
+                                        <span class="name ">
+                                            Hyoga de Cisne
+                                        </span>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                        </div>
+                    </div>
+                    <div class="mondongo appear">
+                        <div class="round-header">
+                            <h4>Ronda 9</h4>
+                        </div>
+                        <div class="round">
+                            <div class="round-details-container">
+
+                                <div class="round-gif-player1 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 1 -->
+                                    <img src="N/A" alt="Jugador 1 atacando" style="width: 120px; height: 90px;">
+                                </div>
+
+                                <div class="round-details">
+
+                                        <p>
+                                            Turno 3:
+                                            <br>
+                                            Hyoga de Cisne esta paralizado y no puede moverse.
+                                        </p>
+
+
+
+
+                                </div>
+                                <div class="round-gif-player2 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 2 -->
+                                    <img src="N/A" alt="Jugador 2 atacando" style="width: 120px; height: 90px;">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="inner-box">
+                                <!-- Contenido del div pequeño si es necesario -->
+
+
+
+                                
+
+                            <div class="duel-row">
+
+                                <!-- Jugador 1 -->
+                                <div class="fighter-side left">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill blue" style="--hp:3986; --max:4000;">
+                                        </div>
+                                    </div>
+                                        <span class="damage-float">-14</span>
+
+                                    <div class="hp-info">
+                                        <span class="name ">
+                                            TESTER
+                                        </span>
+                                        <span class="values">3986 / 4000</span>
+                                    </div>
+                                </div>
+
+                                <!-- VS -->
+                                <div class="duel-divider">VS</div>
+
+                                <!-- Jugador 2 (ESPEJO) -->
+                                <div class="fighter-side right">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill gold enemy" style="--hp:3936; --max:4000;">
+                                        </div>
+                                    </div>
+
+                                        <span class="damage-float right">-64</span>
+
+                                    <div class="hp-info enemy">
+                                        <span class="values">3936 / 4000</span>
+                                        <span class="name attacker">
+                                            Hyoga de Cisne
+                                        </span>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                        </div>
+                    </div>
+                    <div class="mondongo appear">
+                        <div class="round-header">
+                            <h4>Ronda 10</h4>
+                        </div>
+                        <div class="round">
+                            <div class="round-details-container">
+
+                                <div class="round-gif-player1 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 1 -->
+                                    <img src="N/A" alt="Jugador 1 atacando" style="width: 120px; height: 90px;">
+                                </div>
+
+                                <div class="round-details">
+
+                                        <p>
+                                            Turno 4:
+                                            <br>
+                                            Hyoga de Cisne esta paralizado y no puede moverse.
+                                        </p>
+
+
+
+
+                                </div>
+                                <div class="round-gif-player2 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 2 -->
+                                    <img src="N/A" alt="Jugador 2 atacando" style="width: 120px; height: 90px;">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="inner-box">
+                                <!-- Contenido del div pequeño si es necesario -->
+
+
+
+                                
+
+                            <div class="duel-row">
+
+                                <!-- Jugador 1 -->
+                                <div class="fighter-side left">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill blue" style="--hp:3986; --max:4000;">
+                                        </div>
+                                    </div>
+                                        <span class="damage-float">-14</span>
+
+                                    <div class="hp-info">
+                                        <span class="name ">
+                                            TESTER
+                                        </span>
+                                        <span class="values">3986 / 4000</span>
+                                    </div>
+                                </div>
+
+                                <!-- VS -->
+                                <div class="duel-divider">VS</div>
+
+                                <!-- Jugador 2 (ESPEJO) -->
+                                <div class="fighter-side right">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill gold enemy" style="--hp:3936; --max:4000;">
+                                        </div>
+                                    </div>
+
+                                        <span class="damage-float right">-64</span>
+
+                                    <div class="hp-info enemy">
+                                        <span class="values">3936 / 4000</span>
+                                        <span class="name attacker">
+                                            Hyoga de Cisne
+                                        </span>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                        </div>
+                    </div>
+                    <div class="mondongo appear">
+                        <div class="round-header">
+                            <h4>Ronda 11</h4>
+                        </div>
+                        <div class="round">
+                            <div class="round-details-container">
+
+                                <div class="round-gif-player1 show-gif">
+                                    <!-- Aquí va el gif del Jugador 1 -->
+                                    <img src="https://i.makeagif.com/media/5-22-2023/D1xYAp.gif" alt="Jugador 1 atacando" style="width: 120px; height: 90px;">
+                                </div>
+
+                                <div class="round-details">
+
+                                        <p>
+                                            Turno 7:
+                                            <br>
+                                            TESTER  : Siente el filo de la espada sagrada... Excalibur!<br>Hyoga de Cisne recibe 22 de daño.
+                                        </p>
+                                            <p>
+                                                Este ataque tiene un efecto: Fractura 7-4
+                                                <br>
+                                                Esta tecnica puede romper la armadura del enemigo hasta en 7 puntos y paralizarlo hasta por 4 rondas.
+                                            </p>
+
+
+
+
+                                </div>
+                                <div class="round-gif-player2 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 2 -->
+                                    <img src="https://i.makeagif.com/media/5-22-2023/D1xYAp.gif" alt="Jugador 2 atacando" style="width: 120px; height: 90px;">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="inner-box">
+                                <!-- Contenido del div pequeño si es necesario -->
+
+
+
+                                
+
+                            <div class="duel-row">
+
+                                <!-- Jugador 1 -->
+                                <div class="fighter-side left">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill blue" style="--hp:3986; --max:4000;">
+                                        </div>
+                                    </div>
+                                        <span class="damage-float">-14</span>
+
+                                    <div class="hp-info">
+                                        <span class="name attacker">
+                                            TESTER
+                                        </span>
+                                        <span class="values">3986 / 4000</span>
+                                    </div>
+                                </div>
+
+                                <!-- VS -->
+                                <div class="duel-divider">VS</div>
+
+                                <!-- Jugador 2 (ESPEJO) -->
+                                <div class="fighter-side right">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill gold enemy" style="--hp:3914; --max:4000;">
+                                        </div>
+                                    </div>
+
+                                        <span class="damage-float right">-86</span>
+
+                                    <div class="hp-info enemy">
+                                        <span class="values">3914 / 4000</span>
+                                        <span class="name ">
+                                            Hyoga de Cisne
+                                        </span>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                        </div>
+                    </div>
+                    <div class="mondongo appear">
+                        <div class="round-header">
+                            <h4>Ronda 12</h4>
+                        </div>
+                        <div class="round">
+                            <div class="round-details-container">
+
+                                <div class="round-gif-player1 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 1 -->
+                                    <img src="N/A" alt="Jugador 1 atacando" style="width: 120px; height: 90px;">
+                                </div>
+
+                                <div class="round-details">
+
+                                        <p>
+                                            Turno 5:
+                                            <br>
+                                            Hyoga de Cisne esta paralizado y no puede moverse.
+                                        </p>
+
+
+
+
+                                </div>
+                                <div class="round-gif-player2 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 2 -->
+                                    <img src="N/A" alt="Jugador 2 atacando" style="width: 120px; height: 90px;">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="inner-box">
+                                <!-- Contenido del div pequeño si es necesario -->
+
+
+
+                                
+
+                            <div class="duel-row">
+
+                                <!-- Jugador 1 -->
+                                <div class="fighter-side left">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill blue" style="--hp:3986; --max:4000;">
+                                        </div>
+                                    </div>
+                                        <span class="damage-float">-14</span>
+
+                                    <div class="hp-info">
+                                        <span class="name ">
+                                            TESTER
+                                        </span>
+                                        <span class="values">3986 / 4000</span>
+                                    </div>
+                                </div>
+
+                                <!-- VS -->
+                                <div class="duel-divider">VS</div>
+
+                                <!-- Jugador 2 (ESPEJO) -->
+                                <div class="fighter-side right">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill gold enemy" style="--hp:3914; --max:4000;">
+                                        </div>
+                                    </div>
+
+                                        <span class="damage-float right">-86</span>
+
+                                    <div class="hp-info enemy">
+                                        <span class="values">3914 / 4000</span>
+                                        <span class="name attacker">
+                                            Hyoga de Cisne
+                                        </span>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                        </div>
+                    </div>
+                    <div class="mondongo appear">
+                        <div class="round-header">
+                            <h4>Ronda 13</h4>
+                        </div>
+                        <div class="round">
+                            <div class="round-details-container">
+
+                                <div class="round-gif-player1 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 1 -->
+                                    <img src="N/A" alt="Jugador 1 atacando" style="width: 120px; height: 90px;">
+                                </div>
+
+                                <div class="round-details">
+
+                                        <p>
+                                            Turno 8:
+                                            <br>
+                                            TESTER  ha lanzado un golpe<br>Hyoga de Cisne recibe 3 de daño.
+                                        </p>
+
+
+
+
+                                </div>
+                                <div class="round-gif-player2 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 2 -->
+                                    <img src="N/A" alt="Jugador 2 atacando" style="width: 120px; height: 90px;">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="inner-box">
+                                <!-- Contenido del div pequeño si es necesario -->
+
+
+
+                                
+
+                            <div class="duel-row">
+
+                                <!-- Jugador 1 -->
+                                <div class="fighter-side left">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill blue" style="--hp:3986; --max:4000;">
+                                        </div>
+                                    </div>
+                                        <span class="damage-float">-14</span>
+
+                                    <div class="hp-info">
+                                        <span class="name attacker">
+                                            TESTER
+                                        </span>
+                                        <span class="values">3986 / 4000</span>
+                                    </div>
+                                </div>
+
+                                <!-- VS -->
+                                <div class="duel-divider">VS</div>
+
+                                <!-- Jugador 2 (ESPEJO) -->
+                                <div class="fighter-side right">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill gold enemy" style="--hp:3911; --max:4000;">
+                                        </div>
+                                    </div>
+
+                                        <span class="damage-float right">-89</span>
+
+                                    <div class="hp-info enemy">
+                                        <span class="values">3911 / 4000</span>
+                                        <span class="name ">
+                                            Hyoga de Cisne
+                                        </span>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                        </div>
+                    </div>
+                    <div class="mondongo appear">
+                        <div class="round-header">
+                            <h4>Ronda 14</h4>
+                        </div>
+                        <div class="round">
+                            <div class="round-details-container">
+
+                                <div class="round-gif-player1 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 1 -->
+                                    <img src="N/A" alt="Jugador 1 atacando" style="width: 120px; height: 90px;">
+                                </div>
+
+                                <div class="round-details">
+
+                                        <p>
+                                            Turno 6:
+                                            <br>
+                                            Hyoga de Cisne esta paralizado y no puede moverse.
+                                        </p>
+
+
+
+
+                                </div>
+                                <div class="round-gif-player2 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 2 -->
+                                    <img src="N/A" alt="Jugador 2 atacando" style="width: 120px; height: 90px;">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="inner-box">
+                                <!-- Contenido del div pequeño si es necesario -->
+
+
+
+                                
+
+                            <div class="duel-row">
+
+                                <!-- Jugador 1 -->
+                                <div class="fighter-side left">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill blue" style="--hp:3986; --max:4000;">
+                                        </div>
+                                    </div>
+                                        <span class="damage-float">-14</span>
+
+                                    <div class="hp-info">
+                                        <span class="name ">
+                                            TESTER
+                                        </span>
+                                        <span class="values">3986 / 4000</span>
+                                    </div>
+                                </div>
+
+                                <!-- VS -->
+                                <div class="duel-divider">VS</div>
+
+                                <!-- Jugador 2 (ESPEJO) -->
+                                <div class="fighter-side right">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill gold enemy" style="--hp:3911; --max:4000;">
+                                        </div>
+                                    </div>
+
+                                        <span class="damage-float right">-89</span>
+
+                                    <div class="hp-info enemy">
+                                        <span class="values">3911 / 4000</span>
+                                        <span class="name attacker">
+                                            Hyoga de Cisne
+                                        </span>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                        </div>
+                    </div>
+                    <div class="mondongo appear">
+                        <div class="round-header">
+                            <h4>Ronda 15</h4>
+                        </div>
+                        <div class="round">
+                            <div class="round-details-container">
+
+                                <div class="round-gif-player1 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 1 -->
+                                    <img src="N/A" alt="Jugador 1 atacando" style="width: 120px; height: 90px;">
+                                </div>
+
+                                <div class="round-details">
+
+                                        <p>
+                                            Turno 9:
+                                            <br>
+                                            TESTER  ha lanzado un golpe<br>Hyoga de Cisne ha esquivado el ataque.
+                                        </p>
+
+
+
+
+                                </div>
+                                <div class="round-gif-player2 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 2 -->
+                                    <img src="N/A" alt="Jugador 2 atacando" style="width: 120px; height: 90px;">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="inner-box">
+                                <!-- Contenido del div pequeño si es necesario -->
+
+
+
+                                
+
+                            <div class="duel-row">
+
+                                <!-- Jugador 1 -->
+                                <div class="fighter-side left">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill blue" style="--hp:3986; --max:4000;">
+                                        </div>
+                                    </div>
+                                        <span class="damage-float">-14</span>
+
+                                    <div class="hp-info">
+                                        <span class="name attacker">
+                                            TESTER
+                                        </span>
+                                        <span class="values">3986 / 4000</span>
+                                    </div>
+                                </div>
+
+                                <!-- VS -->
+                                <div class="duel-divider">VS</div>
+
+                                <!-- Jugador 2 (ESPEJO) -->
+                                <div class="fighter-side right">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill gold enemy" style="--hp:3911; --max:4000;">
+                                        </div>
+                                    </div>
+
+                                        <span class="damage-float right">-89</span>
+
+                                    <div class="hp-info enemy">
+                                        <span class="values">3911 / 4000</span>
+                                        <span class="name ">
+                                            Hyoga de Cisne
+                                        </span>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                        </div>
+                    </div>
+                    <div class="mondongo appear">
+                        <div class="round-header">
+                            <h4>Ronda 16</h4>
+                        </div>
+                        <div class="round">
+                            <div class="round-details-container">
+
+                                <div class="round-gif-player1 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 1 -->
+                                    <img src="N/A" alt="Jugador 1 atacando" style="width: 120px; height: 90px;">
+                                </div>
+
+                                <div class="round-details">
+
+                                        <p>
+                                            Turno 7:
+                                            <br>
+                                            Hyoga de Cisne  ha lanzado un golpe<br>TESTER recibe 3 de daño.
+                                        </p>
+
+
+
+
+                                </div>
+                                <div class="round-gif-player2 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 2 -->
+                                    <img src="N/A" alt="Jugador 2 atacando" style="width: 120px; height: 90px;">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="inner-box">
+                                <!-- Contenido del div pequeño si es necesario -->
+
+
+
+                                
+
+                            <div class="duel-row">
+
+                                <!-- Jugador 1 -->
+                                <div class="fighter-side left">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill blue" style="--hp:3983; --max:4000;">
+                                        </div>
+                                    </div>
+                                        <span class="damage-float">-17</span>
+
+                                    <div class="hp-info">
+                                        <span class="name ">
+                                            TESTER
+                                        </span>
+                                        <span class="values">3983 / 4000</span>
+                                    </div>
+                                </div>
+
+                                <!-- VS -->
+                                <div class="duel-divider">VS</div>
+
+                                <!-- Jugador 2 (ESPEJO) -->
+                                <div class="fighter-side right">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill gold enemy" style="--hp:3911; --max:4000;">
+                                        </div>
+                                    </div>
+
+                                        <span class="damage-float right">-89</span>
+
+                                    <div class="hp-info enemy">
+                                        <span class="values">3911 / 4000</span>
+                                        <span class="name attacker">
+                                            Hyoga de Cisne
+                                        </span>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                        </div>
+                    </div>
+                    <div class="mondongo appear">
+                        <div class="round-header">
+                            <h4>Ronda 17</h4>
+                        </div>
+                        <div class="round">
+                            <div class="round-details-container">
+
+                                <div class="round-gif-player1 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 1 -->
+                                    <img src="N/A" alt="Jugador 1 atacando" style="width: 120px; height: 90px;">
+                                </div>
+
+                                <div class="round-details">
+
+                                        <p>
+                                            Turno 8:
+                                            <br>
+                                            Hyoga de Cisne  ha lanzado un golpe<br>TESTER recibe 3 de daño.
+                                        </p>
+
+
+
+
+                                </div>
+                                <div class="round-gif-player2 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 2 -->
+                                    <img src="N/A" alt="Jugador 2 atacando" style="width: 120px; height: 90px;">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="inner-box">
+                                <!-- Contenido del div pequeño si es necesario -->
+
+
+
+                                
+
+                            <div class="duel-row">
+
+                                <!-- Jugador 1 -->
+                                <div class="fighter-side left">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill blue" style="--hp:3980; --max:4000;">
+                                        </div>
+                                    </div>
+                                        <span class="damage-float">-20</span>
+
+                                    <div class="hp-info">
+                                        <span class="name ">
+                                            TESTER
+                                        </span>
+                                        <span class="values">3980 / 4000</span>
+                                    </div>
+                                </div>
+
+                                <!-- VS -->
+                                <div class="duel-divider">VS</div>
+
+                                <!-- Jugador 2 (ESPEJO) -->
+                                <div class="fighter-side right">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill gold enemy" style="--hp:3911; --max:4000;">
+                                        </div>
+                                    </div>
+
+                                        <span class="damage-float right">-89</span>
+
+                                    <div class="hp-info enemy">
+                                        <span class="values">3911 / 4000</span>
+                                        <span class="name attacker">
+                                            Hyoga de Cisne
+                                        </span>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                        </div>
+                    </div>
+                    <div class="mondongo appear">
+                        <div class="round-header">
+                            <h4>Ronda 18</h4>
+                        </div>
+                        <div class="round">
+                            <div class="round-details-container">
+
+                                <div class="round-gif-player1 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 1 -->
+                                    <img src="N/A" alt="Jugador 1 atacando" style="width: 120px; height: 90px;">
+                                </div>
+
+                                <div class="round-details">
+
+                                        <p>
+                                            Turno 10:
+                                            <br>
+                                            TESTER  ha lanzado un golpe<br>Hyoga de Cisne recibe 3 de daño.
+                                        </p>
+
+
+
+
+                                </div>
+                                <div class="round-gif-player2 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 2 -->
+                                    <img src="N/A" alt="Jugador 2 atacando" style="width: 120px; height: 90px;">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="inner-box">
+                                <!-- Contenido del div pequeño si es necesario -->
+
+
+
+                                
+
+                            <div class="duel-row">
+
+                                <!-- Jugador 1 -->
+                                <div class="fighter-side left">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill blue" style="--hp:3980; --max:4000;">
+                                        </div>
+                                    </div>
+                                        <span class="damage-float">-20</span>
+
+                                    <div class="hp-info">
+                                        <span class="name attacker">
+                                            TESTER
+                                        </span>
+                                        <span class="values">3980 / 4000</span>
+                                    </div>
+                                </div>
+
+                                <!-- VS -->
+                                <div class="duel-divider">VS</div>
+
+                                <!-- Jugador 2 (ESPEJO) -->
+                                <div class="fighter-side right">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill gold enemy" style="--hp:3908; --max:4000;">
+                                        </div>
+                                    </div>
+
+                                        <span class="damage-float right">-92</span>
+
+                                    <div class="hp-info enemy">
+                                        <span class="values">3908 / 4000</span>
+                                        <span class="name ">
+                                            Hyoga de Cisne
+                                        </span>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                        </div>
+                    </div>
+                    <div class="mondongo appear">
+                        <div class="round-header">
+                            <h4>Ronda 19</h4>
+                        </div>
+                        <div class="round">
+                            <div class="round-details-container">
+
+                                <div class="round-gif-player1 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 1 -->
+                                    <img src="N/A" alt="Jugador 1 atacando" style="width: 120px; height: 90px;">
+                                </div>
+
+                                <div class="round-details">
+
+                                        <p>
+                                            Turno 9:
+                                            <br>
+                                            Hyoga de Cisne  ha lanzado un golpe<br>TESTER recibe 3 de daño.
+                                        </p>
+
+
+
+
+                                </div>
+                                <div class="round-gif-player2 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 2 -->
+                                    <img src="N/A" alt="Jugador 2 atacando" style="width: 120px; height: 90px;">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="inner-box">
+                                <!-- Contenido del div pequeño si es necesario -->
+
+
+
+                                
+
+                            <div class="duel-row">
+
+                                <!-- Jugador 1 -->
+                                <div class="fighter-side left">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill blue" style="--hp:3977; --max:4000;">
+                                        </div>
+                                    </div>
+                                        <span class="damage-float">-23</span>
+
+                                    <div class="hp-info">
+                                        <span class="name ">
+                                            TESTER
+                                        </span>
+                                        <span class="values">3977 / 4000</span>
+                                    </div>
+                                </div>
+
+                                <!-- VS -->
+                                <div class="duel-divider">VS</div>
+
+                                <!-- Jugador 2 (ESPEJO) -->
+                                <div class="fighter-side right">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill gold enemy" style="--hp:3908; --max:4000;">
+                                        </div>
+                                    </div>
+
+                                        <span class="damage-float right">-92</span>
+
+                                    <div class="hp-info enemy">
+                                        <span class="values">3908 / 4000</span>
+                                        <span class="name attacker">
+                                            Hyoga de Cisne
+                                        </span>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                        </div>
+                    </div>
+                    <div class="mondongo appear">
+                        <div class="round-header">
+                            <h4>Ronda 20</h4>
+                        </div>
+                        <div class="round">
+                            <div class="round-details-container">
+
+                                <div class="round-gif-player1 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 1 -->
+                                    <img src="N/A" alt="Jugador 1 atacando" style="width: 120px; height: 90px;">
+                                </div>
+
+                                <div class="round-details">
+
+                                        <p>
+                                            Turno 11:
+                                            <br>
+                                            TESTER  ha lanzado un golpe<br>Hyoga de Cisne recibe 5 de daño.
+                                        </p>
+
+
+
+
+                                </div>
+                                <div class="round-gif-player2 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 2 -->
+                                    <img src="N/A" alt="Jugador 2 atacando" style="width: 120px; height: 90px;">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="inner-box">
+                                <!-- Contenido del div pequeño si es necesario -->
+
+
+
+                                
+
+                            <div class="duel-row">
+
+                                <!-- Jugador 1 -->
+                                <div class="fighter-side left">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill blue" style="--hp:3977; --max:4000;">
+                                        </div>
+                                    </div>
+                                        <span class="damage-float">-23</span>
+
+                                    <div class="hp-info">
+                                        <span class="name attacker">
+                                            TESTER
+                                        </span>
+                                        <span class="values">3977 / 4000</span>
+                                    </div>
+                                </div>
+
+                                <!-- VS -->
+                                <div class="duel-divider">VS</div>
+
+                                <!-- Jugador 2 (ESPEJO) -->
+                                <div class="fighter-side right">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill gold enemy" style="--hp:3903; --max:4000;">
+                                        </div>
+                                    </div>
+
+                                        <span class="damage-float right">-97</span>
+
+                                    <div class="hp-info enemy">
+                                        <span class="values">3903 / 4000</span>
+                                        <span class="name ">
+                                            Hyoga de Cisne
+                                        </span>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                        </div>
+                    </div>
+                    <div class="mondongo appear">
+                        <div class="round-header">
+                            <h4>Ronda 21</h4>
+                        </div>
+                        <div class="round">
+                            <div class="round-details-container">
+
+                                <div class="round-gif-player1 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 1 -->
+                                    <img src="N/A" alt="Jugador 1 atacando" style="width: 120px; height: 90px;">
+                                </div>
+
+                                <div class="round-details">
+
+                                        <p>
+                                            Turno 12:
+                                            <br>
+                                            TESTER  ha lanzado un golpe<br>Hyoga de Cisne recibe 3 de daño.
+                                        </p>
+
+
+
+
+                                </div>
+                                <div class="round-gif-player2 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 2 -->
+                                    <img src="N/A" alt="Jugador 2 atacando" style="width: 120px; height: 90px;">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="inner-box">
+                                <!-- Contenido del div pequeño si es necesario -->
+
+
+
+                                
+
+                            <div class="duel-row">
+
+                                <!-- Jugador 1 -->
+                                <div class="fighter-side left">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill blue" style="--hp:3977; --max:4000;">
+                                        </div>
+                                    </div>
+                                        <span class="damage-float">-23</span>
+
+                                    <div class="hp-info">
+                                        <span class="name attacker">
+                                            TESTER
+                                        </span>
+                                        <span class="values">3977 / 4000</span>
+                                    </div>
+                                </div>
+
+                                <!-- VS -->
+                                <div class="duel-divider">VS</div>
+
+                                <!-- Jugador 2 (ESPEJO) -->
+                                <div class="fighter-side right">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill gold enemy" style="--hp:3900; --max:4000;">
+                                        </div>
+                                    </div>
+
+                                        <span class="damage-float right">-100</span>
+
+                                    <div class="hp-info enemy">
+                                        <span class="values">3900 / 4000</span>
+                                        <span class="name ">
+                                            Hyoga de Cisne
+                                        </span>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                        </div>
+                    </div>
+                    <div class="mondongo appear">
+                        <div class="round-header">
+                            <h4>Ronda 22</h4>
+                        </div>
+                        <div class="round">
+                            <div class="round-details-container">
+
+                                <div class="round-gif-player1 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 1 -->
+                                    <img src="N/A" alt="Jugador 1 atacando" style="width: 120px; height: 90px;">
+                                </div>
+
+                                <div class="round-details">
+
+                                        <p>
+                                            Turno 10:
+                                            <br>
+                                            Hyoga de Cisne  ha lanzado un golpe<br>TESTER recibe 5 de daño.
+                                        </p>
+
+
+
+
+                                </div>
+                                <div class="round-gif-player2 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 2 -->
+                                    <img src="N/A" alt="Jugador 2 atacando" style="width: 120px; height: 90px;">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="inner-box">
+                                <!-- Contenido del div pequeño si es necesario -->
+
+
+
+                                
+
+                            <div class="duel-row">
+
+                                <!-- Jugador 1 -->
+                                <div class="fighter-side left">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill blue" style="--hp:3972; --max:4000;">
+                                        </div>
+                                    </div>
+                                        <span class="damage-float">-28</span>
+
+                                    <div class="hp-info">
+                                        <span class="name ">
+                                            TESTER
+                                        </span>
+                                        <span class="values">3972 / 4000</span>
+                                    </div>
+                                </div>
+
+                                <!-- VS -->
+                                <div class="duel-divider">VS</div>
+
+                                <!-- Jugador 2 (ESPEJO) -->
+                                <div class="fighter-side right">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill gold enemy" style="--hp:3900; --max:4000;">
+                                        </div>
+                                    </div>
+
+                                        <span class="damage-float right">-100</span>
+
+                                    <div class="hp-info enemy">
+                                        <span class="values">3900 / 4000</span>
+                                        <span class="name attacker">
+                                            Hyoga de Cisne
+                                        </span>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                        </div>
+                    </div>
+                    <div class="mondongo appear">
+                        <div class="round-header">
+                            <h4>Ronda 23</h4>
+                        </div>
+                        <div class="round">
+                            <div class="round-details-container">
+
+                                <div class="round-gif-player1 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 1 -->
+                                    <img src="N/A" alt="Jugador 1 atacando" style="width: 120px; height: 90px;">
+                                </div>
+
+                                <div class="round-details">
+
+                                        <p>
+                                            Turno 13:
+                                            <br>
+                                            TESTER  ha lanzado un golpe<br>Hyoga de Cisne recibe 6 de daño.
+                                        </p>
+
+
+
+
+                                </div>
+                                <div class="round-gif-player2 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 2 -->
+                                    <img src="N/A" alt="Jugador 2 atacando" style="width: 120px; height: 90px;">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="inner-box">
+                                <!-- Contenido del div pequeño si es necesario -->
+
+
+
+                                
+
+                            <div class="duel-row">
+
+                                <!-- Jugador 1 -->
+                                <div class="fighter-side left">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill blue" style="--hp:3972; --max:4000;">
+                                        </div>
+                                    </div>
+                                        <span class="damage-float">-28</span>
+
+                                    <div class="hp-info">
+                                        <span class="name attacker">
+                                            TESTER
+                                        </span>
+                                        <span class="values">3972 / 4000</span>
+                                    </div>
+                                </div>
+
+                                <!-- VS -->
+                                <div class="duel-divider">VS</div>
+
+                                <!-- Jugador 2 (ESPEJO) -->
+                                <div class="fighter-side right">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill gold enemy" style="--hp:3894; --max:4000;">
+                                        </div>
+                                    </div>
+
+                                        <span class="damage-float right">-106</span>
+
+                                    <div class="hp-info enemy">
+                                        <span class="values">3894 / 4000</span>
+                                        <span class="name ">
+                                            Hyoga de Cisne
+                                        </span>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                        </div>
+                    </div>
+                    <div class="mondongo appear">
+                        <div class="round-header">
+                            <h4>Ronda 24</h4>
+                        </div>
+                        <div class="round">
+                            <div class="round-details-container">
+
+                                <div class="round-gif-player1 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 1 -->
+                                    <img src="N/A" alt="Jugador 1 atacando" style="width: 120px; height: 90px;">
+                                </div>
+
+                                <div class="round-details">
+
+                                        <p>
+                                            Turno 11:
+                                            <br>
+                                            Hyoga de Cisne  ha lanzado un golpe<br>TESTER recibe 4 de daño.
+                                        </p>
+
+
+
+
+                                </div>
+                                <div class="round-gif-player2 hide-gif">
+                                    <!-- Aquí va el gif del Jugador 2 -->
+                                    <img src="N/A" alt="Jugador 2 atacando" style="width: 120px; height: 90px;">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="inner-box">
+                                <!-- Contenido del div pequeño si es necesario -->
+
+
+
+                                
+
+                            <div class="duel-row">
+
+                                <!-- Jugador 1 -->
+                                <div class="fighter-side left">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill blue" style="--hp:3968; --max:4000;">
+                                        </div>
+                                    </div>
+                                        <span class="damage-float">-32</span>
+
+                                    <div class="hp-info">
+                                        <span class="name ">
+                                            TESTER
+                                        </span>
+                                        <span class="values">3968 / 4000</span>
+                                    </div>
+                                </div>
+
+                                <!-- VS -->
+                                <div class="duel-divider">VS</div>
+
+                                <!-- Jugador 2 (ESPEJO) -->
+                                <div class="fighter-side right">
+                                    <div class="hp-bar small">
+                                        <div class="hp-fill gold enemy" style="--hp:3894; --max:4000;">
+                                        </div>
+                                    </div>
+
+                                        <span class="damage-float right">-106</span>
+
+                                    <div class="hp-info enemy">
+                                        <span class="values">3894 / 4000</span>
+                                        <span class="name attacker">
+                                            Hyoga de Cisne
+                                        </span>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                        </div>
+                    </div>
+            </div>
+        </div>
+
+        <!-- Final Results Section -->
+            <div class="results-section appear">
+                <h2 class="result-title">Resultado de la batalla</h2>
+                <h3 class="result-title">TESTER ha ganado la batalla.</h3>
+                <div class="results-container">
+
+                    <!-- Jugador 1 resultado -->
+                    <div class="result-container appear" id="jugador1-result">
+                        
+                        <div class="rewards-message victory" style="--hasReward: 120px;">
+                            <h3>TESTER</h3>
+                            <img class="player-avatar result-image" src="https://i.pinimg.com/736x/9f/f5/f6/9ff5f60b882eb1b7c03f6c36392cc8ce.jpg" alt="Resultado Jugador 1">
+                            <h4>Me pelan toda la yayai</h4>
+                            <div class="reward-text">
+                                <h4>Recompensas Obtenidas:</h4>
+                            </div>
+                            <div class="reward-list">
+                                <ul>
+                                    <li>Monedas Ganadas:  250</li>
+                                    <li>Experiencia: 1</li>
+                                    <div class="hide-gif">
+                                        <img style="width: 120px; height: 90px;">
+                                    </div>
+                                    <li>Técnica Obtenida: Ninguna</li>
+                                    <div class="show-gif">
+                                        <img src="https://www.pharaonwebsite.com/users/trident/fanarts/Saint_Seiya/0Blank/Cygne_1.png" style="width: 120px; height: 120px;">
+                                    </div>
+                                    <li>Armadura Obtenida: Cisne x1</li>
+                                </ul>
+                            </div>
+                            
+                        </div>
+                    </div>
+
+                    <!-- Jugador 2 resultado -->
+                    <div class="result-container appear" id="jugador2-result">
+                        
+                        <div class="rewards-message defeat" style="--hasReward: 120px;">
+                            <h3>Hyoga de Cisne</h3>
+                            <img class="npj-avatar result-image" src="https://www.pharaonwebsite.com/users/trident/fanarts/Saint_Seiya/0Blank/Hyoga_I.png" alt="Resultado Jugador 2" style="--cosmo-color: rgb(242, 255, 255);">
+                            <h4>Perdi</h4>
+                            <div class="reward-text">
+                                <h4>Recompensas Obtenidas:</h4>
+                            </div>
+                            <div class="reward-list">
+                                <ul>
+                                    <li>Monedas:</li>
+                                    <li>Experiencia: </li>
+                                    <li>Técnicas: </li>
+                                    <li>Armadura: </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+    </div>
+    <script src="/js/script.js"></script>
+<script src="/_framework/aspnetcore-browser-refresh.js"></script>
+
+</body></html>
